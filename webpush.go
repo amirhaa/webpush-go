@@ -48,6 +48,7 @@ type Options struct {
 	Urgency         Urgency    // Set the Urgency header to change a message priority (Optional)
 	VAPIDPublicKey  string     // VAPID public key, passed in VAPID Authorization header
 	VAPIDPrivateKey string     // VAPID private key, used to sign VAPID JWT token
+	DisablePadding  bool       // Disable padding for message data buffer
 }
 
 // Keys are the base64 encoded values from PushSubscription.getKey()
@@ -168,7 +169,7 @@ func SendNotification(message []byte, s *Subscription, options *Options) (*http.
 	// Pad content to max record size - 16 - header
 	// Padding ending delimeter
 	dataBuf.Write([]byte("\x02"))
-	if err := pad(dataBuf, recordLength-recordBuf.Len()); err != nil {
+	if err := pad(dataBuf, recordLength-recordBuf.Len(), options.DisablePadding); err != nil {
 		return nil, err
 	}
 
@@ -248,7 +249,11 @@ func getHKDFKey(hkdf io.Reader, length int) ([]byte, error) {
 	return key, nil
 }
 
-func pad(payload *bytes.Buffer, maxPadLen int) error {
+func pad(payload *bytes.Buffer, maxPadLen int, disablePadding bool) error {
+	if disablePadding {
+		return nil
+	}
+
 	payloadLen := payload.Len()
 	if payloadLen > maxPadLen {
 		return ErrMaxPadExceeded
